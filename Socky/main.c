@@ -29,14 +29,46 @@ void callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, 
 int main(int argc, const char * argv[]) {
     CFSocketRef socket;
     
-    socket = CFSocketCreate(NULL, PF_INET, SOCK_STREAM, IPPROTO_TCP, kCFSocketReadCallBack, &callback, NULL);
+    socket = CFSocketCreate(NULL,
+                            PF_INET,
+                            SOCK_STREAM,
+                            IPPROTO_TCP,
+                            kCFSocketReadCallBack | kCFSocketAcceptCallBack | kCFSocketConnectCallBack,
+                            &callback,
+                            NULL);
+    
+    if (socket == NULL) {
+        printf("Failed to create socket");
+        return 1;
+    }
+    
+    // bind to port
+    struct sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_port = htons(27060);
+    inet_aton("127.0.0.1", &address.sin_addr.s_addr);
+    CFDataRef addressData = CFDataCreate(NULL, &address, sizeof(address));
+    
+    CFSocketError bindResult = CFSocketSetAddress(socket, addressData);
+    if (bindResult != kCFSocketSuccess) {
+        printf("Failed to bind with %d\n", bindResult);
+    }
+    
+    // add to run loop
+    CFRunLoopSourceRef runLoopSource = CFSocketCreateRunLoopSource(NULL, socket, 1);
+    if (runLoopSource == NULL) {
+        printf("Unable to get CFRunLoop source reference");
+        return 2;
+    }
+    CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSource, kCFRunLoopDefaultMode);
     
     
-    printf("Hello, World!\n");
-    
+    printf("Beginning run loop\n");
     
     
     CFRunLoopRun();
+    CFRelease(addressData);
+    CFRelease(runLoopSource);
     CFRelease(socket);
     
     return 0;
