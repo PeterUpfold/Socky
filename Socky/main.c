@@ -23,7 +23,9 @@
 
 
 void callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, const void *data, void *info) {
-    printf("Got a callback instance");
+    // post a CFNotificationCenter notification
+    CFNotificationCenterPostNotification(CFNotificationCenterGetDistributedCenter(), CFSTR("uk.org.upfold.Socky.ReceivedConnection"), CFSTR("Got socket connection!"), NULL, true);
+    printf("Got connection!");
 }
 
 int main(int argc, const char * argv[]) {
@@ -51,7 +53,7 @@ int main(int argc, const char * argv[]) {
     
     CFSocketError bindResult = CFSocketSetAddress(socket, addressData);
     if (bindResult != kCFSocketSuccess) {
-        printf("Failed to bind with %d\n", bindResult);
+        printf("Failed to bind with %ld\n", (long)bindResult);
     }
     
     // add to run loop
