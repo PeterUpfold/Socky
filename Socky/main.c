@@ -27,13 +27,15 @@ void callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, 
     // get address
     CFRetain(address);
     
+    int portNumber = *((int*)info);
+    
     struct sockaddr_in nativeAddress;
     CFDataGetBytes(address, CFRangeMake(0, CFDataGetLength(address)), &nativeAddress);
     CFRelease(address);
     
     in_port_t port = nativeAddress.sin_port;
     
-    CFStringRef description = CFStringCreateWithFormat(NULL, NULL, CFSTR("Received a connection on port %d."), (int)info);
+    CFStringRef description = CFStringCreateWithFormat(NULL, NULL, CFSTR("Received a connection on port %d."), portNumber);
     
     // post a CFNotificationCenter notification
     CFNotificationCenterPostNotification(CFNotificationCenterGetDistributedCenter(),
@@ -50,6 +52,12 @@ int main(int argc, const char * argv[]) {
     CFSocketRef sockets[argc-1];
     CFRunLoopSourceRef runLoopSources[argc-1];
     
+    // socket context — store information about the ports for sending to the notifier agent
+    long int ports[argc-1];
+    for (int i = 0; i < argc-1; i++) {
+        ports[i] = 0;
+    }
+    
     if (argc < 2) {
         printf("Pass arguments for the ports on which you want Socky to listen.\n");
         return 3;
@@ -58,9 +66,12 @@ int main(int argc, const char * argv[]) {
     for (int i = 1; i < argc; i++) {
         
         CFSocketContext context;
-        context.info = atoi(argv[i]); // not sure this is right at all -- misusing a pointer to just throw the int in there??
         
-        sockets[i] = CFSocketCreate(NULL,
+        ports[i-1] = strtol(argv[i], NULL, 10);
+        
+        context.info = &ports[i-1];
+        
+        sockets[i-1] = CFSocketCreate(NULL,
                                 PF_INET,
                                 SOCK_STREAM,
                                 IPPROTO_TCP,
@@ -69,7 +80,7 @@ int main(int argc, const char * argv[]) {
                                 &context);
         
         
-        if (sockets[i] == NULL) {
+        if (sockets[i-1] == NULL) {
             printf("Failed to create socket");
             return 1;
         }
@@ -77,13 +88,13 @@ int main(int argc, const char * argv[]) {
         // bind to port
         struct sockaddr_in address;
         address.sin_family = AF_INET;
-        address.sin_port = htons(atoi(argv[i]));
+        address.sin_port = htons((int)ports[i-1]);
         inet_aton("127.0.0.1", &address.sin_addr.s_addr);
         CFDataRef addressData = CFDataCreate(NULL, &address, sizeof(address));
         
         
         
-        CFSocketError bindResult = CFSocketSetAddress(sockets[i], addressData);
+        CFSocketError bindResult = CFSocketSetAddress(sockets[i-1], addressData);
         if (bindResult != kCFSocketSuccess) {
             printf("Failed to bind to 127.0.0.1:%s with %ld\n", argv[i], (long)bindResult);
             CFRelease(addressData);
@@ -93,12 +104,12 @@ int main(int argc, const char * argv[]) {
         printf("Listening on 127.0.0.1:%s\n", argv[i]);
         
         // add to run loop
-        runLoopSources[i] = CFSocketCreateRunLoopSource(NULL, sockets[i], 1);
-        if (runLoopSources[i] == NULL) {
+        runLoopSources[i-1] = CFSocketCreateRunLoopSource(NULL, sockets[i-1], 1);
+        if (runLoopSources[i-1] == NULL) {
             printf("Unable to get CFRunLoop source reference");
             return 2;
         }
-        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSources[i], kCFRunLoopDefaultMode);
+        CFRunLoopAddSource(CFRunLoopGetCurrent(), runLoopSources[i-1], kCFRunLoopDefaultMode);
         CFRelease(addressData);
     }
     
