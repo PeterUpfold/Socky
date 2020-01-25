@@ -43,7 +43,7 @@ void callback(CFSocketRef socket, CFSocketCallBackType type, CFDataRef address, 
                                          description,
                                          NULL,
                                          true);
-    printf("Got connection on %d!\n", (int)info);
+    printf("Got connection on %d!\n", portNumber);
     CFRelease(description);
 }
 
@@ -69,6 +69,9 @@ int main(int argc, const char * argv[]) {
         
         ports[i-1] = strtol(argv[i], NULL, 10);
         
+        context.copyDescription = NULL;
+        context.release = NULL;
+        context.retain = NULL;
         context.info = &ports[i-1];
         
         sockets[i-1] = CFSocketCreate(NULL,
